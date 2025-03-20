@@ -49,7 +49,7 @@ function diff_arrays<T>(old_array: T[], new_array: T[]): Diff<T> {
     let old_i = find_index(old_array, new_array[i])
     if (old_i === -1) {
       inserts.push(res)
-      old_array[i] = new_array[i]
+      old_array.splice(i, 0, new_array[i])
     }
   }
 
@@ -73,11 +73,10 @@ function diff_to_dom<T>(el: HTMLElement, diff: Diff<T>, make_t: (_: T) => HTMLEl
 
   removes.map(_ => [_, el.removeChild(el.children[_])] as [number, HTMLElement])
 
-  inserts.map(_ => [make_t(_[1]), el.children[_[0] + 1] ?? null])
-    .forEach(a => el.insertBefore(a[0], a[1]))
+  inserts.forEach(_ => el.insertBefore(make_t(_[1]), el.children[_[0]] ?? null))
 
   orders.map(_ => {
-     el.insertBefore(el.children[_[0]], el.children[_[1] + 1])
+     el.insertBefore(el.children[_[0]], el.children[_[1]])
      el.insertBefore(el.children[_[1] - 1], el.children[_[0]])
   })
 

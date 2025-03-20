@@ -44,6 +44,9 @@ function key2pos(key: PositionKey): Position {
   let [file, rank] = key.split('') as [File, Rank]
   return { file, rank }
 }
+function pos2key(pos: Position): PositionKey {
+  return `${pos.file}${pos.rank}`
+}
 
 function key2piece(key: PieceKey): Piece {
   let [color, role] = key.split(' ') as [Color, Role]
@@ -118,11 +121,35 @@ export function fen2pieces(fen: FEN): Pieces {
 
 
 
+const is_cg_piece = (_: CGPiece | CGSquare): _ is CGPiece => {
+  return (_ as CGPiece).piece !== undefined
+}
+
+function cg_piece_or_square(cg_: CGPiece | CGSquare, cg_orientation: CGOrientation) {
+  if (is_cg_piece(cg_)) {
+    return cg_piece(cg_, cg_orientation)
+  } else {
+    return cg_square(cg_, cg_orientation)
+  }
+}
+
 type CancelAction = { action: 'cancel' }
 type LerpAction = { action: 'lerp', x: number, y: number }
 type AnimTranslateAction = { action: 'anim_translate', x: number, y: number, on_end?: () => void }
 
 type CGXYAction = LerpAction | AnimTranslateAction | CancelAction
+
+function new_cg_piece(piece: Piece, position: Position): CGPiece {
+  return {
+    piece,
+    position,
+    xy: createSignal(),
+    deg: createSignal(),
+    scale: createSignal(),
+    ghost: createSignal(),
+    dragging: createSignal(),
+  }
+}
 
 export type CGPiece = {
   piece: Piece,
@@ -131,8 +158,8 @@ export type CGPiece = {
   deg: Signal<number>
   scale: Signal<number>
   ghost: Signal<boolean>
+  dragging: Signal<boolean>
 }
-
 // state 
 // Pieces
 
@@ -279,6 +306,37 @@ function cg_piece(cg_piece: CGPiece, cg_orientation: CGOrientation): HTMLElement
     set_klass(el, { 'ghost': ghost })
   })
 
+  cg_piece.dragging.subscribe(dragging => {
+    set_klass(el, { 'dragging': dragging })
+  })
+
+
+
+  return el
+}
+
+
+type CGSquare = {
+  a_klass: string
+  position: Position
+}
+
+function cg_square(cg_square: CGSquare, cg_orientation: CGOrientation) {
+
+  let el = h('div')
+
+  set_klass(el, { 'cg-square': true, [cg_square.a_klass]: true })
+
+  let { orientation } = cg_orientation
+  let [x, y] = position_to_percent(cg_square.position, orientation.get())
+
+  translate_percent(x, y)
+  function translate_percent(new_x: number, new_y: number) {
+    x = new_x
+    y = new_y
+    set_translate_percent(el, x, y)
+  }
+
   return el
 }
 
@@ -302,24 +360,38 @@ function cg_board(cg_board: CGBoard) {
 
   // TODO remove on unmount
   addElementResizeListener(el, debounce(set_bounds, 100))
+  // TODO remove on unmount
+  el.addEventListener('mousedown', on_mouse_down)
 
   let drag = createSignal<DragAction>()
 
-  const on_mouse_down = (e: MouseEvent) => {
+  function on_mouse_down(e: MouseEvent) {
     DragEngine.begin_drag(drag, e)
   }
 
-  // TODO remove on unmount
-  el.addEventListener('mousedown', on_mouse_down)
 
   drag.subscribe(set_drag)
 
   cg_board.pieces.subscribe(set_pieces)
   cg_board.orientation.subscribe(set_orientation)
 
+  function set_dests_for_key(key?: PositionKey) {
+    let dests = key ? cg_board.dests.get()?.get(key) : undefined
+
+    if (dests) {
+      cg_dests = dests.map(dest => ({
+        a_klass: 'dest',
+        position: key2pos(dest)
+      }))
+      reconcile_local()
+    } else {
+      cg_dests = []
+      reconcile_local()
+    }
+  }
+
   let on_piece: CGPiece | undefined
 
-  let cg_pieces: CGPiece[] = []
 
   function set_drag(action: DragAction) {
     switch (action.action) {
@@ -339,19 +411,16 @@ function cg_board(cg_board: CGBoard) {
         
         let cg_piece = cg_pieces.find(_ => pos_equal(_.position, position))
         if (cg_piece) {
-          let cg_piece_clone: CGPiece = {
-            piece: cg_piece.piece,
-            position: cg_piece.position,
-            xy: createSignal(),
-            deg: createSignal(),
-            scale: createSignal(),
-            ghost: createSignal() 
-          }
+          let cg_piece_clone: CGPiece = new_cg_piece(cg_piece.piece, cg_piece.position)
+
           cg_board.drag.set([cg_piece_clone, cg_piece])
           cg_piece_clone.xy.set({ action: 'anim_translate', x, y })
+          cg_piece_clone.dragging.set(true)
 
           cg_piece.ghost.set(true)
           cg_piece.scale.set(0.8)
+
+          set_dests_for_key(pos2key(position))
         }
 
 
@@ -410,6 +479,7 @@ function cg_board(cg_board: CGBoard) {
           cg_piece_orig.ghost.set(false)
           cg_piece_orig.scale.set(1)
         }
+        set_dests_for_key(undefined)
       } break
     }
   }
@@ -439,39 +509,41 @@ function cg_board(cg_board: CGBoard) {
         let [lerp_x, lerp_y] = position_to_percent(position)
         old_one.xy.set({ action: 'anim_translate', x: lerp_x, y: lerp_y })
       } else {
-        new_cg_pieces.push({
-          position,
-          piece,
-          xy: createSignal(),
-          deg: createSignal(),
-          scale: createSignal(),
-          ghost: createSignal()
-        })
+        new_cg_pieces.push(new_cg_piece(piece, position))
       }
     }
 
-    reconcile(el, cg_pieces, new_cg_pieces, _ => cg_piece(_, cg_board))
     cg_pieces = new_cg_pieces
+    reconcile_local()
   }
 
   cg_board.drag.subscribe((dghost, prevdghost) => {
     if (dghost) {
 
-      let new_cg_pieces = [...cg_pieces, dghost[0]]
-
-      reconcile(el, cg_pieces, new_cg_pieces, _ => cg_piece(_, cg_board))
-      cg_pieces = new_cg_pieces
+      cg_ghost = [dghost[0]]
+      reconcile_local()
     } else {
       if (prevdghost) {
-        let new_cg_pieces = cg_pieces.filter(_ => _ !== prevdghost[0])
-
-        reconcile(el, cg_pieces, new_cg_pieces, _ => cg_piece(_, cg_board))
-        cg_pieces = new_cg_pieces
+        cg_ghost = []
+        reconcile_local()
       }
     }
 
   })
 
+  let cg_pieces: CGPiece[] = []
+  let cg_ghost: CGPiece[] = []
+
+  let cg_dests: CGSquare[] = []
+
+  let prev_cg_all: (CGSquare | CGPiece)[] = []
+
+  function reconcile_local() {
+    let next_all = [...cg_pieces, ...cg_dests, ...cg_ghost]
+
+    reconcile(el, prev_cg_all, next_all, _ => cg_piece_or_square(_, cg_board))
+    prev_cg_all = next_all
+  }
 
   return  {
     on_mount: () => {
