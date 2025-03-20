@@ -8,20 +8,20 @@ const RANKS = '12345678'.split('')
 const RANKS_DESC = RANKS.slice(0).reverse()
 const FILES_DESC = FILES.slice(0).reverse()
 
-type File = typeof FILES[number]
-type Rank = typeof RANKS[number]
+export type File = typeof FILES[number]
+export type Rank = typeof RANKS[number]
 
-type PositionKey = `${File}${Rank}`
+export type PositionKey = `${File}${Rank}`
 
-type Position = {
+export type Position = {
   file: File,
   rank: Rank
 }
 
-type Color = 'white' | 'black'
-type Role = 'pawn' | 'knight' | 'bishop' | 'rook' | 'queen' | 'king'
+export type Color = 'white' | 'black'
+export type Role = 'pawn' | 'knight' | 'bishop' | 'rook' | 'queen' | 'king'
 
-type RoleKey = 'p' | 'k' | 'n' | 'b' | 'r' | 'q'
+export type RoleKey = 'p' | 'k' | 'n' | 'b' | 'r' | 'q'
 
 const key2role: Record<RoleKey, Role> = { 'p': 'pawn', 'k': 'king', 'n': 'knight', 'r': 'rook', 'q': 'queen', 'b': 'bishop' }
 
@@ -80,7 +80,7 @@ function position_to_percent(pos: Position, orientation?: Color) {
   return [x * 100, y * 100]
 }
 
-type FEN = string
+export type FEN = string
 
 export const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
@@ -292,7 +292,7 @@ type CGBoard = CGOrientation & {
 function cg_board(cg_board: CGBoard) {
 
   let el = h('div')
-  set_klass(el, { 'cg-board': true, 'is2d': true })
+  set_klass(el, { 'cg-board': true })
 
   let bounds: DOMRect
   const set_bounds = () => bounds = el.getBoundingClientRect()
@@ -533,7 +533,7 @@ function cg_coords(cg_coords: CGCoords) {
   }
 }
 
-type CGContainer = CGBoard & CGOrientation
+export type CGContainer = CGBoard & CGOrientation
 
 export function cg_container(cg_container: CGContainer) {
 

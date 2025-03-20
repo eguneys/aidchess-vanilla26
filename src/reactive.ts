@@ -2,6 +2,21 @@ export type Listener<T> = (value: T, prev?: T | undefined) => void;
 
 export type Signal<T> = { get: () => T | undefined, set_f: (_: (prev: T | undefined) => T) => void, set: (_: T) => void, subscribe: (listener: Listener<T>) => void, unsubscribe: (listener: Listener<T>) => void }
 
+export function createMap<A, T>(t: Signal<T>, mapFn: (_: T) => A): Signal<A> {
+    let res = createSignal<A>()
+
+    const on_map: Listener<T> = t => res.set(mapFn(t))
+
+    t.subscribe(on_map)
+    return {
+        ...res,
+        unsubscribe(listener: Listener<A>) {
+            t.unsubscribe(on_map)
+            res.unsubscribe(listener)
+        }
+    }
+}
+
 export function createSignal<T>(initialValue?: T): Signal<T> {
   let value = initialValue;
   const listeners = new Set<Listener<T>>();
