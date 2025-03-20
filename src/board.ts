@@ -315,6 +315,12 @@ function cg_piece(cg_piece: CGPiece, cg_orientation: CGOrientation): HTMLElement
   return el
 }
 
+function new_cg_square(a_klass: string, position: Position) {
+  return {
+    a_klass,
+    position
+  }
+}
 
 type CGSquare = {
   a_klass: string
@@ -379,10 +385,7 @@ function cg_board(cg_board: CGBoard) {
     let dests = key ? cg_board.dests.get()?.get(key) : undefined
 
     if (dests) {
-      cg_dests = dests.map(dest => ({
-        a_klass: 'dest',
-        position: key2pos(dest)
-      }))
+      cg_dests = dests.map(dest => new_cg_square('dest', key2pos(dest)))
       reconcile_local()
     } else {
       cg_dests = []
@@ -421,6 +424,9 @@ function cg_board(cg_board: CGBoard) {
           cg_piece.scale.set(0.8)
 
           set_dests_for_key(pos2key(position))
+
+          cg_orig = [new_cg_square('orig', cg_piece.position)]
+          reconcile_local()
         }
 
 
@@ -480,6 +486,8 @@ function cg_board(cg_board: CGBoard) {
           cg_piece_orig.scale.set(1)
         }
         set_dests_for_key(undefined)
+        cg_orig = []
+        reconcile_local()
       } break
     }
   }
@@ -535,11 +543,12 @@ function cg_board(cg_board: CGBoard) {
   let cg_ghost: CGPiece[] = []
 
   let cg_dests: CGSquare[] = []
+  let cg_orig: CGSquare[] = []
 
   let prev_cg_all: (CGSquare | CGPiece)[] = []
 
   function reconcile_local() {
-    let next_all = [...cg_pieces, ...cg_dests, ...cg_ghost]
+    let next_all = [...cg_pieces, ...cg_orig,...cg_dests, ...cg_ghost]
 
     reconcile(el, prev_cg_all, next_all, _ => cg_piece_or_square(_, cg_board))
     prev_cg_all = next_all
