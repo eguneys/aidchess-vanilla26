@@ -57,7 +57,7 @@
 
             user-select: none;
             cursor: pointer;
-            transition: top .1s;
+            transition: opacity .3s, top .1s;
             top: 0;
 
             &:hover {
