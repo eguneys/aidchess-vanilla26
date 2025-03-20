@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      chessops:
+        specifier: ^0.14.2
+        version: 0.14.2
     devDependencies:
       sass-embedded:
         specifier: ^1.86.0
@@ -19,6 +23,9 @@ importers:
         version: 6.2.2(sass-embedded@1.86.0)
 
 packages:
+
+  '@badrap/result@0.2.13':
+    resolution: {integrity: sha512-Qvyzz0dmGY0h8pwvBFo1BznAKf5Y5NXIDiqhPALWtfU7oHbAToCtPu4FlYQ3uysskSWLx8GUiyhe0nv0nDd/7Q==}
 
   '@bufbuild/protobuf@2.2.4':
     resolution: {integrity: sha512-P9xQgtMh71TA7tHTnbDe68zcI+TPnkyyfBIhGaUr4iUEIXN7yI01DyjmmdEwXTk5OlISBJYkoxCVj2dwmHqIkA==}
@@ -274,6 +281,9 @@ packages:
   buffer-builder@0.2.0:
     resolution: {integrity: sha512-7VPMEPuYznPSoR21NE1zvd2Xna6c/CloiZCfcMXR1Jny6PjX0N4Nsa38zcBFo/FMK+BlA+FLKbJCQ0i2yxp+Xg==}
 
+  chessops@0.14.2:
+    resolution: {integrity: sha512-7DghoMODSN8a17L9JHYBWhLBaSKROKS7+NDsvseNJ502UTbuZ7EYueIAmo1oD+f0TeEqh+jo2gsUFRhGRKAR3g==}
+
   colorjs.io@0.5.2:
     resolution: {integrity: sha512-twmVoizEW7ylZSN32OgKdXRmo1qg+wT5/6C3xu5b9QsWzSFAhHLn2xd8ro0diCsKfCj1RdaTP/nrcW+vAoQPIw==}
 
@@ -508,6 +518,8 @@ packages:
 
 snapshots:
 
+  '@badrap/result@0.2.13': {}
+
   '@bufbuild/protobuf@2.2.4': {}
 
   '@esbuild/aix-ppc64@0.25.1':
@@ -645,6 +657,10 @@ snapshots:
   '@types/estree@1.0.6': {}
 
   buffer-builder@0.2.0: {}
+
+  chessops@0.14.2:
+    dependencies:
+      '@badrap/result': 0.2.13
 
   colorjs.io@0.5.2: {}
 

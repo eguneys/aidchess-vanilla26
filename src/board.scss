@@ -61,7 +61,12 @@
             top: 0;
 
             &:hover {
-                top: -2px;
+                top: -1px;
+            }
+
+            &.ghost {
+                opacity: 0.6;
+                top: 1px;
             }
         }
     }
