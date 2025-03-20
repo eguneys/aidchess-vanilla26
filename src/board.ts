@@ -346,6 +346,7 @@ function cg_square(cg_square: CGSquare, cg_orientation: CGOrientation) {
   return el
 }
 
+
 type CGOrientation = {
   orientation: Signal<Color>
 }
@@ -354,6 +355,7 @@ type CGBoard = CGOrientation & {
   pieces: Signal<Pieces>
   dests: Signal<Dests>
   drag: Signal<[CGPiece, CGPiece | undefined] | undefined>
+  on_drag_play_orig_key: Signal<[PositionKey, PositionKey]>
 }
 
 function cg_board(cg_board: CGBoard) {
@@ -375,6 +377,13 @@ function cg_board(cg_board: CGBoard) {
     DragEngine.begin_drag(drag, e)
   }
 
+  function drag_play_orig_dest(orig: Position, dest: Position) {
+    let dests = orig ? cg_board.dests.get()?.get(pos2key(orig)) : undefined
+
+    if (dests?.includes(pos2key(dest)) === true) {
+      cg_board.on_drag_play_orig_key.set([pos2key(orig), pos2key(dest)])
+    }
+  }
 
   drag.subscribe(set_drag)
 
@@ -467,6 +476,10 @@ function cg_board(cg_board: CGBoard) {
         if (!cg_drag) {
           return
         }
+
+        let n = event_position_normalized(bounds, action.x, action.y)
+        let dest = normalized_to_position(n[0], n[1], cg_board.orientation.get())
+
         let [cg_piece, cg_piece_orig] = cg_drag
 
         let [x, y] = position_to_percent(cg_piece.position, cg_board.orientation.get())
@@ -483,6 +496,10 @@ function cg_board(cg_board: CGBoard) {
         if (cg_piece_orig) {
           cg_piece_orig.ghost.set(false)
           cg_piece_orig.scale.set(1)
+
+          let orig = cg_piece.position
+
+          drag_play_orig_dest(orig, dest)
         }
 
         cg_orig = []
@@ -618,7 +635,7 @@ function cg_coords(cg_coords: CGCoords) {
   }
 }
 
-export type CGContainer = CGBoard & CGOrientation
+export type CGContainer = CGBoard
 
 export function cg_container(cg_container: CGContainer) {
 

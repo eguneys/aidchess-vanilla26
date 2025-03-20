@@ -9,7 +9,8 @@ export type CGWrap = {
   fen: Signal<FEN>,
   last_move: Signal<[PositionKey, PositionKey]>
   orientation: Signal<Color>
-  drag: Signal<CGPiece>
+  drag: Signal<CGPiece>,
+  on_drag_play_orig_key: Signal<[PositionKey, PositionKey]>
 }
 export function cg_wrap(cg_wrap: CGWrap)  {
 
@@ -19,6 +20,7 @@ export function cg_wrap(cg_wrap: CGWrap)  {
   let pieces = createMap<Pieces, FEN>(cg_wrap.fen, fen2pieces)
   let orientation = cg_wrap.orientation
   let drag = createSignal<[CGPiece, CGPiece | undefined] | undefined>()
+  let on_drag_play_orig_key = cg_wrap.on_drag_play_orig_key
 
   let dests = createMap<Dests, FEN>(cg_wrap.fen, fen2dests)
 
@@ -26,7 +28,8 @@ export function cg_wrap(cg_wrap: CGWrap)  {
     dests,
     pieces,
     orientation,
-    drag
+    drag,
+    on_drag_play_orig_key
   })
 
   el.appendChild(cg_container_el)
@@ -49,12 +52,18 @@ function app(el: HTMLElement) {
   let fen = createSignal<FEN>()
   let last_move = createSignal<[PositionKey, PositionKey]>()
   let drag = createSignal<CGPiece>()
+  let on_drag_play_orig_key = createSignal<[PositionKey, PositionKey]>()
 
   let { el: cg_wrap_el, on_mount } = cg_wrap({
     fen,
     orientation,
     last_move,
-    drag
+    drag,
+    on_drag_play_orig_key
+  })
+
+  on_drag_play_orig_key.subscribe(([orig, dest]: [PositionKey, PositionKey]) => {
+    console.log(orig, dest)
   })
 
   el_wrap.appendChild(cg_wrap_el)
