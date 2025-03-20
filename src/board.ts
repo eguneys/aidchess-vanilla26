@@ -3,10 +3,12 @@ import './assets/merida.css'
 import { addElementResizeListener, debounce, event_position_normalized, h, reconcile, set_content, set_klass, set_translate_percent } from './dom'
 import { anim_value, AnimEngine, AnimValue, createSignal, DragAction, DragEngine, lerp, make_anim_value, Signal } from './reactive'
 
-const FILES = 'abcdefgh'.split('')
-const RANKS = '12345678'.split('')
-const RANKS_DESC = RANKS.slice(0).reverse()
-const FILES_DESC = FILES.slice(0).reverse()
+export type Dests = Map<PositionKey, PositionKey[]>
+
+const FILES = ['a','b','c','d','e','f','g','h'] as const
+const RANKS = ['1','2','3','4','5','6','7','8'] as const
+const FILES_DESC = ['h','g','f','e','d','c','b','a'] as const
+const RANKS_DESC = ['8','7','6','5','4','3','2','1'] as const
 
 export type File = typeof FILES[number]
 export type Rank = typeof RANKS[number]
@@ -39,7 +41,7 @@ function pos_equal(a: Position, b: Position) {
 }
 
 function key2pos(key: PositionKey): Position {
-  let [file, rank] = key.split('')
+  let [file, rank] = key.split('') as [File, Rank]
   return { file, rank }
 }
 
@@ -84,8 +86,8 @@ export type FEN = string
 
 export const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
-export function fen_to_pieces(fen: FEN): Pieces {
-  let pieces: Pieces = {}
+export function fen2pieces(fen: FEN): Pieces {
+  let pieces: Pieces = {} as Pieces
 
   let [s_board] = fen.split(' ')
 
@@ -286,6 +288,7 @@ type CGOrientation = {
 
 type CGBoard = CGOrientation & {
   pieces: Signal<Pieces>
+  dests: Signal<Dests>
   drag: Signal<[CGPiece, CGPiece | undefined] | undefined>
 }
 
@@ -422,9 +425,9 @@ function cg_board(cg_board: CGBoard) {
     let old_cg_pieces = cg_pieces.slice(0)
     let new_cg_pieces: CGPiece[] = []
 
-    for (let sq of Object.keys(pieces)) {
-      let position = key2pos(sq)
-      let piece = key2piece(pieces[sq])
+    for (let sq in pieces) {
+      let position = key2pos(sq as PositionKey)
+      let piece = key2piece(pieces[sq as PositionKey])
 
       let old_one = old_cg_pieces
         .filter(_ => _.piece.color === piece.color && _.piece.role === piece.role)
@@ -508,7 +511,10 @@ function cg_coords(cg_coords: CGCoords) {
 
   function set_orientation(orientation: Color) {
 
-    let [old_ranks, new_ranks] = [RANKS, RANKS_DESC]
+
+    let old_ranks: Rank[], new_ranks: Rank[]
+
+    [old_ranks, new_ranks] = [RANKS.slice(0), RANKS_DESC.slice(0)]
 
     if (orientation === 'black') {
       [old_ranks, new_ranks] = [new_ranks, old_ranks]
@@ -517,15 +523,15 @@ function cg_coords(cg_coords: CGCoords) {
     reconcile(el_ranks, old_ranks, new_ranks, (_: Rank) => h('div'))
 
 
-    let [old_files, new_files] = [FILES, FILES_DESC]
+    let old_files: File[], new_files: File[]
+
+    [old_files, new_files] = [FILES.slice(0), FILES_DESC.slice(0)]
 
     if (orientation === 'black') {
       [old_files, new_files] = [new_files, old_files]
     }
 
-    reconcile(el_files, old_files, new_files, (_: Rank) => h('div'))
-
-
+    reconcile(el_files, old_files, new_files, (_: File) => h('div'))
   }
 
   return {

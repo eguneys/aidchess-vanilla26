@@ -1,10 +1,9 @@
-import { Color } from 'chessops'
-import { cg_container, CGPiece, FEN, fen_to_pieces, INITIAL_FEN, Pieces, PositionKey } from './board'
+import { cg_container, CGPiece, Color, Dests, FEN, fen2pieces, INITIAL_FEN, Pieces, PositionKey } from './board'
+import { fen2dests } from './chess'
 import { h, set_klass } from './dom'
 import './index.scss'
 import { createMap, createSignal, Signal } from './reactive'
 import './showcase.scss'
-
 
 export type CGWrap = {
   fen: Signal<FEN>,
@@ -17,11 +16,14 @@ export function cg_wrap(cg_wrap: CGWrap)  {
   let el = h('div')
   set_klass(el, { 'cg-wrap': true, 'is2d': true })
 
-  let pieces = createMap<Pieces, FEN>(cg_wrap.fen, fen_to_pieces)
+  let pieces = createMap<Pieces, FEN>(cg_wrap.fen, fen2pieces)
   let orientation = cg_wrap.orientation
   let drag = createSignal<[CGPiece, CGPiece | undefined] | undefined>()
 
+  let dests = createMap<Dests, FEN>(cg_wrap.fen, fen2dests)
+
   let { on_mount, el: cg_container_el } = cg_container({
+    dests,
     pieces,
     orientation,
     drag
@@ -69,3 +71,4 @@ function app(el: HTMLElement) {
 }
 
 app(document.getElementById('app')!)
+
