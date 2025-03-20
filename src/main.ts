@@ -58,8 +58,8 @@ function diff_to_dom<T>(el: HTMLElement, diff: Diff<T>, make_t: (_: T) => HTMLEl
     .forEach(a => el.insertBefore(a[0], a[1]))
 
   orders.map(_ => {
-     el.insertBefore(el.children[1], el.children[_[0] + 1])
-     el.insertBefore(el.children[0], el.children[_[1] + 1])
+     el.insertBefore(el.children[_[0]], el.children[_[1] + 1])
+     el.insertBefore(el.children[_[1] - 1], el.children[_[0]])
   })
 
 }
@@ -128,6 +128,8 @@ export function h(tag: HTMLTag) {
 
 const FILES = 'abcdefgh'.split('')
 const RANKS = '12345678'.split('')
+const RANKS_DESC = RANKS.slice(0).reverse()
+const FILES_DESC = FILES.slice(0).reverse()
 
 type File = typeof FILES[number]
 type Rank = typeof RANKS[number]
@@ -175,11 +177,16 @@ function normalized_to_square(x: number, y: number) {
   return `${FILES[Math.floor(x * 8)]}${RANKS[Math.floor(y * 8)]}`
 }
 
-function position_to_percent(pos: Position) {
+function position_to_percent(pos: Position, orientation?: Color) {
   let { file, rank } = pos
 
   let x = FILES.indexOf(file)
-  let y = RANKS.indexOf(rank)
+  let y = 7 - RANKS.indexOf(rank)
+
+  if (orientation === 'black') {
+    y = 7 - y
+    x = 7 - x
+  }
 
   return [x * 100, y * 100]
 }
@@ -221,13 +228,17 @@ function fen_to_pieces(fen: FEN): Pieces {
 
 export type Listener<T> = (value: T) => void;
 
-export type Signal<T> = { get: () => T | undefined, set: (_: T) => void, subscribe: (listener: Listener<T>) => void, unsubscribe: (listener: Listener<T>) => void }
+export type Signal<T> = { get: () => T | undefined, set_f: (_: (prev: T | undefined) => T) => void, set: (_: T) => void, subscribe: (listener: Listener<T>) => void, unsubscribe: (listener: Listener<T>) => void }
 
 export function createSignal<T>(initialValue?: T): Signal<T> {
   let value = initialValue;
   const listeners = new Set<Listener<T>>();
 
   const get = (): T | undefined => value;
+
+  const set_f = (f: (prev: T | undefined) => T) => {
+    set(f(value))
+  }
 
   const set = (newValue: T): void => {
     if (value !== newValue) {
@@ -244,7 +255,7 @@ export function createSignal<T>(initialValue?: T): Signal<T> {
     listeners.delete(listener);
   };
 
-  return { get, set, subscribe, unsubscribe };
+  return { get, set, set_f, subscribe, unsubscribe };
 }
 
 export type EaseFunc = (t: number) => number
@@ -344,12 +355,12 @@ function MakeAnimEngineSingleton() {
 type LerpAction = { action: 'lerp', x: number, y: number }
 type AnimTranslateAction = { action: 'anim_translate', x: number, y: number }
 
-type CGPieceAction = LerpAction | AnimTranslateAction
+type CGXYAction = LerpAction | AnimTranslateAction
 
 type CGPiece = {
   piece: Piece,
   position: Position,
-  action: Signal<CGPieceAction>
+  xy: Signal<CGXYAction>
 }
 
 // state 
@@ -373,7 +384,7 @@ function cg_piece(cg_piece: CGPiece): HTMLElement {
 
   function anim_translate_to_position(position: Position) {
     let [x, y] = position_to_percent(position)
-    cg_piece.action.set({ action: 'anim_translate', x, y })
+    cg_piece.xy.set({ action: 'anim_translate', x, y })
   }
 
 
@@ -399,7 +410,7 @@ function cg_piece(cg_piece: CGPiece): HTMLElement {
     AnimEngine.add_animation(anim_value_signal)
   }
 
-  cg_piece.action.subscribe(action => {
+  cg_piece.xy.subscribe(action => {
     switch (action.action) {
       case 'lerp': {
         unsub_from_anim_engine()
@@ -417,12 +428,12 @@ function cg_piece(cg_piece: CGPiece): HTMLElement {
   return el
 }
 
-type PiecesAction = { action: 'pieces', pieces: Pieces }
+type CGOrientation = {
+  orientation: Signal<Color>
+}
 
-type CGBoardAction = PiecesAction
-
-type CGBoard = {
-  action: Signal<CGBoardAction>
+type CGBoard = CGOrientation & {
+  pieces: Signal<Pieces>
 }
 
 function cg_board(cg_board: CGBoard) {
@@ -442,17 +453,19 @@ function cg_board(cg_board: CGBoard) {
 
   el.addEventListener('mousedown', on_mouse_down)
 
-  cg_board.action.subscribe(action => {
-    switch(action.action) {
-      case 'pieces': {
-        set_pieces(action.pieces)
-      } break
-    }
-  })
+  cg_board.pieces.subscribe(set_pieces)
+  cg_board.orientation.subscribe(set_orientation)
 
   let cg_pieces: CGPiece[] = []
 
-  const set_pieces = (pieces: Pieces) => {
+  function set_orientation(orientation: Color) {
+    cg_pieces.forEach(_ => {
+      let [x, y] = position_to_percent(_.position, orientation)
+      _.xy.set({ action: 'anim_translate', x, y })
+    })
+  }
+
+  function set_pieces(pieces: Pieces) {
     let old_cg_pieces = cg_pieces.slice(0)
     let new_cg_pieces: CGPiece[] = []
 
@@ -468,12 +481,12 @@ function cg_board(cg_board: CGBoard) {
         new_cg_pieces.push(old_one)
         old_cg_pieces.splice(old_cg_pieces.indexOf(old_one), 1)
         let [lerp_x, lerp_y] = position_to_percent(position)
-        old_one.action.set({ action: 'anim_translate', x: lerp_x, y: lerp_y })
+        old_one.xy.set({ action: 'anim_translate', x: lerp_x, y: lerp_y })
       } else {
         new_cg_pieces.push({
           position,
           piece,
-          action: createSignal<CGPieceAction>()
+          xy: createSignal<CGXYAction>()
         })
       }
     }
@@ -490,32 +503,75 @@ function cg_board(cg_board: CGBoard) {
   }
 }
 
-function cg_coords() {
-  let el = h('div')
+type CGCoords = CGOrientation
 
-  set_klass(el, { 'cg-coords': true })
+function cg_coords(cg_coords: CGCoords) {
+
+  let el_files = h('div')
+  set_klass(el_files, { 'cg-files': true })
+
+  FILES.forEach(file => {
+    let el_file = h('div')
+    set_klass(el_file, { 'cg-file': true })
+    set_content(el_file, file)
+
+    el_files.appendChild(el_file)
+  })
+
+  let el_ranks = h('div')
+  set_klass(el_ranks, { 'cg-ranks': true })
+
+  RANKS_DESC.forEach(rank => {
+    let el_rank = h('div')
+    set_klass(el_rank, { 'cg-rank': true })
+    set_content(el_rank, rank)
+
+    el_ranks.appendChild(el_rank)
+  })
+
+  cg_coords.orientation.subscribe(set_orientation)
+
+  function set_orientation(orientation: Color) {
+
+    let [old_ranks, new_ranks] = [RANKS, RANKS_DESC]
+
+    if (orientation === 'black') {
+      [old_ranks, new_ranks] = [new_ranks, old_ranks]
+    }
+
+    reconcile(el_ranks, old_ranks, new_ranks, (_: Rank) => h('div'))
+
+
+    let [old_files, new_files] = [FILES, FILES_DESC]
+
+    if (orientation === 'black') {
+      [old_files, new_files] = [new_files, old_files]
+    }
+
+    reconcile(el_files, old_files, new_files, (_: Rank) => h('div'))
+
+
+  }
 
   return {
-    el
+    els: [el_files, el_ranks]
   }
 }
 
-type CGContainer = {
-  board: CGBoard
-}
+type CGContainer = CGBoard & CGOrientation
 
 function cg_container(cg_container: CGContainer) {
 
   let el = h('div')
-  set_klass(el, { 'board-wrap': true })
+  set_klass(el, { 'cg-container': true })
 
-  let { el: cg_coords_el } = cg_coords()
+  let { els: [cg_files, cg_ranks] } = cg_coords(cg_container)
 
-  let { on_mount, el: cg_board_el } = cg_board(cg_container.board)
-
+  let { on_mount, el: cg_board_el } = cg_board(cg_container)
 
   el.appendChild(cg_board_el)
-  el.appendChild(cg_coords_el)
+  el.appendChild(cg_files)
+  el.appendChild(cg_ranks)
 
   return {
     on_mount() {
@@ -527,20 +583,31 @@ function cg_container(cg_container: CGContainer) {
 
 function app(el: HTMLElement) {
 
-  let board = {
-    action: createSignal<CGBoardAction>()
-  }
+  let el_wrap = h('div')
+  set_klass(el_wrap, { 'board-wrap': true })
+
+  let pieces = createSignal<Pieces>({})
+  let orientation = createSignal<Color>('white')
 
   let { on_mount, el: cg_container_el } = cg_container({
-    board
+    pieces,
+    orientation
   })
 
-  el.appendChild(cg_container_el)
+  el_wrap.appendChild(cg_container_el)
+  el.appendChild(el_wrap)
 
   on_mount()
 
 
-  board.action.set({ action: 'pieces', pieces: fen_to_pieces(INITIAL_FEN)})
+  pieces.set(fen_to_pieces(INITIAL_FEN))
+
+
+  document.addEventListener('keypress', e => {
+    if (e.key === 'f') {
+      orientation.set_f(color => color === 'white' ? 'black' : 'white')
+    }
+  })
 }
 
 app(document.getElementById('app')!)
