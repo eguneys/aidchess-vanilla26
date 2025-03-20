@@ -52,6 +52,9 @@ function key2piece(key: PieceKey): Piece {
   let [color, role] = key.split(' ') as [Color, Role]
   return { color, role }
 }
+function piece2key(piece: Piece): PieceKey {
+  return `${piece.color} ${piece.role}`
+}
 
 function pos_distance(a: Position, b: Position) {
   let df = FILES.indexOf(a.file) - FILES.indexOf(b.file)
@@ -139,7 +142,7 @@ type AnimTranslateAction = { action: 'anim_translate', x: number, y: number, on_
 
 type CGXYAction = LerpAction | AnimTranslateAction | CancelAction
 
-function new_cg_piece(piece: Piece, position: Position): CGPiece {
+function new_cg_piece(piece: Piece, position: Position, put_immediate = false): CGPiece {
   return {
     piece,
     position,
@@ -148,6 +151,7 @@ function new_cg_piece(piece: Piece, position: Position): CGPiece {
     scale: createSignal(),
     ghost: createSignal(),
     dragging: createSignal(),
+    put_immediate
   }
 }
 
@@ -159,6 +163,7 @@ export type CGPiece = {
   scale: Signal<number>
   ghost: Signal<boolean>
   dragging: Signal<boolean>
+  put_immediate?: boolean
 }
 // state 
 // Pieces
@@ -175,16 +180,24 @@ function cg_piece(cg_piece: CGPiece, cg_orientation: CGOrientation): HTMLElement
 
   let [x, y] = position_to_percent(cg_piece.position, orientation.get())
 
-  let deg = Math.random() * 30
-  let scale = 1 + 0.4 - Math.random() * 0.2
+  let deg = 0
+  let scale = 1
 
-  scale_x(scale)
+  if (cg_piece.put_immediate) {
+
+  } else {
+    scale_x(1 + 0.4 - Math.random() * 0.2)
+  }
   function scale_x(new_scale: number) {
     scale = new_scale
     set_translate_percent(el, undefined, undefined, undefined, scale)
   }
 
-  rotate_deg(deg)
+  if (cg_piece.put_immediate) {
+
+  } else {
+    rotate_deg(Math.random() * 30)
+  }
   function rotate_deg(new_deg: number) {
     deg = new_deg
     set_translate_percent(el, undefined, undefined, deg)
@@ -381,9 +394,25 @@ function cg_board(cg_board: CGBoard) {
     let dests = orig ? cg_board.dests.get()?.get(pos2key(orig)) : undefined
 
     if (dests?.includes(pos2key(dest)) === true) {
+      let new_in_pieces =  {...in_pieces }
+      delete new_in_pieces[pos2key(orig)]
+
+      set_pieces(new_in_pieces)
+
       cg_board.on_drag_play_orig_key.set([pos2key(orig), pos2key(dest)])
+      return dest
     }
+
+    return orig
   }
+
+  function drag_play_orig_dest_place(orig: CGPiece, dest: Position) {
+    let new_in_pieces = { ...in_pieces }
+    new_in_pieces[pos2key(dest)] = piece2key(orig.piece)
+    cg_pieces.push(new_cg_piece(orig.piece, dest, true))
+    set_pieces(new_in_pieces)
+  }
+
 
   drag.subscribe(set_drag)
 
@@ -482,8 +511,19 @@ function cg_board(cg_board: CGBoard) {
 
         let [cg_piece, cg_piece_orig] = cg_drag
 
-        let [x, y] = position_to_percent(cg_piece.position, cg_board.orientation.get())
-        const on_end = () => cg_board.drag.set(undefined)
+        let orig = cg_piece.position
+
+        let ret_position = drag_play_orig_dest(orig, dest)
+
+        let [x, y] = position_to_percent(ret_position, cg_board.orientation.get())
+
+        const on_end = () => {
+          cg_board.drag.set(undefined)
+          if (ret_position === dest) {
+
+            drag_play_orig_dest_place(cg_piece, dest)
+          }
+        }
         cg_piece.xy.set({ action: 'anim_translate', x, y, on_end })
 
 
@@ -497,9 +537,6 @@ function cg_board(cg_board: CGBoard) {
           cg_piece_orig.ghost.set(false)
           cg_piece_orig.scale.set(1)
 
-          let orig = cg_piece.position
-
-          drag_play_orig_dest(orig, dest)
         }
 
         cg_orig = []
@@ -515,7 +552,9 @@ function cg_board(cg_board: CGBoard) {
     })
   }
 
+  let in_pieces: Pieces = {} as Pieces
   function set_pieces(pieces: Pieces) {
+    in_pieces = pieces
     let old_cg_pieces = cg_pieces.slice(0)
     let new_cg_pieces: CGPiece[] = []
 
@@ -525,7 +564,7 @@ function cg_board(cg_board: CGBoard) {
 
       let old_one = old_cg_pieces
         .filter(_ => _.piece.color === piece.color && _.piece.role === piece.role)
-        .sort((a, b) => pos_distance(b.position, position) - pos_distance(a.position, position))[0]
+        .sort((a, b) => pos_distance(a.position, position) - pos_distance(b.position, position))[0]
 
       if (old_one) {
         new_cg_pieces.push(old_one)
