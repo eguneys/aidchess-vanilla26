@@ -186,7 +186,7 @@ function position_to_percent(pos: Position) {
 
 type FEN = string
 
-const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+export const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
 function fen_to_pieces(fen: FEN): Pieces {
   let pieces: Pieces = {}
@@ -417,7 +417,15 @@ function cg_piece(cg_piece: CGPiece): HTMLElement {
   return el
 }
 
-function cg_board() {
+type PiecesAction = { action: 'pieces', pieces: Pieces }
+
+type CGBoardAction = PiecesAction
+
+type CGBoard = {
+  action: Signal<CGBoardAction>
+}
+
+function cg_board(cg_board: CGBoard) {
 
   let el = h('div')
   set_klass(el, { 'cg-board': true, 'is2d': true })
@@ -434,65 +442,105 @@ function cg_board() {
 
   el.addEventListener('mousedown', on_mouse_down)
 
+  cg_board.action.subscribe(action => {
+    switch(action.action) {
+      case 'pieces': {
+        set_pieces(action.pieces)
+      } break
+    }
+  })
 
   let cg_pieces: CGPiece[] = []
+
+  const set_pieces = (pieces: Pieces) => {
+    let old_cg_pieces = cg_pieces.slice(0)
+    let new_cg_pieces: CGPiece[] = []
+
+    for (let sq of Object.keys(pieces)) {
+      let position = key2pos(sq)
+      let piece = key2piece(pieces[sq])
+
+      let old_one = old_cg_pieces
+        .filter(_ => _.piece.color === piece.color && _.piece.role === piece.role)
+        .sort((a, b) => pos_distance(b.position, position) - pos_distance(a.position, position))[0]
+
+      if (old_one) {
+        new_cg_pieces.push(old_one)
+        old_cg_pieces.splice(old_cg_pieces.indexOf(old_one), 1)
+        let [lerp_x, lerp_y] = position_to_percent(position)
+        old_one.action.set({ action: 'anim_translate', x: lerp_x, y: lerp_y })
+      } else {
+        new_cg_pieces.push({
+          position,
+          piece,
+          action: createSignal<CGPieceAction>()
+        })
+      }
+    }
+    reconcile(el, cg_pieces, new_cg_pieces, cg_piece)
+    cg_pieces = new_cg_pieces
+  }
+
 
   return  {
     on_mount: () => {
       set_bounds()
     },
-    set_parent: (parent: HTMLElement) => parent.appendChild(el),
-    set_pieces(pieces: Pieces) {
-      let old_cg_pieces = cg_pieces.slice(0)
-      let new_cg_pieces: CGPiece[] = []
-
-      for (let sq of Object.keys(pieces)) {
-        let position = key2pos(sq)
-        let piece = key2piece(pieces[sq])
-
-        let old_one = old_cg_pieces
-        .filter(_ => _.piece.color === piece.color && _.piece.role === piece.role)
-        .sort((a, b) => pos_distance(b.position, position) - pos_distance(a.position, position))[0]
-
-        if (old_one) {
-          new_cg_pieces.push(old_one)
-          old_cg_pieces.splice(old_cg_pieces.indexOf(old_one), 1)
-          let [lerp_x, lerp_y] = position_to_percent(position)
-          old_one.action.set({ action: 'anim_translate', x: lerp_x, y: lerp_y })
-        } else {
-          new_cg_pieces.push({
-            position,
-            piece,
-            action: createSignal<CGPieceAction>(undefined)
-          })
-        }
-      }
-      reconcile(el, cg_pieces, new_cg_pieces, cg_piece)
-      cg_pieces = new_cg_pieces
-    }
+    el
   }
 }
 
-function app(parent: HTMLElement) {
+function cg_coords() {
+  let el = h('div')
+
+  set_klass(el, { 'cg-coords': true })
+
+  return {
+    el
+  }
+}
+
+type CGContainer = {
+  board: CGBoard
+}
+
+function cg_container(cg_container: CGContainer) {
 
   let el = h('div')
   set_klass(el, { 'board-wrap': true })
 
-  let pieces: Pieces = fen_to_pieces(INITIAL_FEN)
-  let { on_mount, set_pieces, set_parent } = cg_board()
-  let pieces2: Pieces = { 'a8': 'white bishop', 'h8': 'black king'}
-  //let pieces2: Pieces = {}
+  let { el: cg_coords_el } = cg_coords()
 
-  set_pieces(pieces)
-  set_parent(el)
+  let { on_mount, el: cg_board_el } = cg_board(cg_container.board)
 
-  setTimeout(() => {
-    //set_pieces(pieces2)
-  }, 1000)
 
-  parent.appendChild(el)
+  el.appendChild(cg_board_el)
+  el.appendChild(cg_coords_el)
+
+  return {
+    on_mount() {
+      on_mount()
+    },
+    el
+  }
+}
+
+function app(el: HTMLElement) {
+
+  let board = {
+    action: createSignal<CGBoardAction>()
+  }
+
+  let { on_mount, el: cg_container_el } = cg_container({
+    board
+  })
+
+  el.appendChild(cg_container_el)
 
   on_mount()
+
+
+  board.action.set({ action: 'pieces', pieces: fen_to_pieces(INITIAL_FEN)})
 }
 
 app(document.getElementById('app')!)
