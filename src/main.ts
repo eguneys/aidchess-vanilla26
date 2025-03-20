@@ -173,7 +173,12 @@ function pos_distance(a: Position, b: Position) {
   return df * df + dr * dr
 }
 
-function normalized_to_square(x: number, y: number) {
+function normalized_to_square(x: number, y: number, orientation?: Color) {
+  if (orientation === 'white') {
+    y = 1 - y
+  } else {
+    x = 1 - x
+  }
   return `${FILES[Math.floor(x * 8)]}${RANKS[Math.floor(y * 8)]}`
 }
 
@@ -287,6 +292,54 @@ export function make_anim_value(start_value: [number, number], end_value: [numbe
     start_time,
     end_time,
     t
+  }
+}
+
+
+type DragAction = { action: 'start' | 'move' | 'drop' | 'cancel', x: number, y: number }
+export const DragEngine = MakeDragEngineSingleton()
+
+function MakeDragEngineSingleton() {
+
+  let ongoing_drag: Signal<DragAction> | undefined
+
+  function on_move(e: MouseEvent) {
+    ongoing_drag?.set({ action: 'move', x: e.clientX, y: e.clientY })
+  }
+
+  function on_drop(e: MouseEvent) {
+    ongoing_drag?.set({ action: 'drop', x: e.clientX, y: e.clientY })
+    remove_drag_listeners()
+  }
+
+  function on_keydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      ongoing_drag?.set({ action: 'cancel', x: 0, y: 0 })
+      remove_drag_listeners()
+    }
+  }
+
+  function begin_drag(drag: Signal<DragAction>, e: MouseEvent) {
+    remove_drag_listeners()
+
+    ongoing_drag = drag
+
+    ongoing_drag.set({ action: 'start', x: e.clientX, y: e.clientY })
+
+    document.addEventListener('mousemove', on_move, { passive: true })
+    document.addEventListener('mouseup', on_drop)
+    document.addEventListener('keydown', on_keydown)
+  }
+
+  function remove_drag_listeners() {
+    document.removeEventListener('mousemove', on_move)
+    document.removeEventListener('mouseup', on_drop)
+    document.removeEventListener('keydown', on_keydown)
+    ongoing_drag = undefined
+  }
+
+  return {
+    begin_drag,
   }
 }
 
@@ -444,19 +497,32 @@ function cg_board(cg_board: CGBoard) {
   let bounds: DOMRect
   const set_bounds = () => bounds = el.getBoundingClientRect()
 
-  const on_mouse_down = (ev: MouseEvent) => {
-    let [x, y] = event_position_normalized(bounds, ev.clientX, ev.clientY)
+  let drag = createSignal<DragAction>()
 
-    let square = normalized_to_square(x, y)
-    console.log(square)
+  const on_mouse_down = (e: MouseEvent) => {
+    DragEngine.begin_drag(drag, e)
   }
 
+  // TODO remove on unmount
   el.addEventListener('mousedown', on_mouse_down)
+
+  drag.subscribe(set_drag)
 
   cg_board.pieces.subscribe(set_pieces)
   cg_board.orientation.subscribe(set_orientation)
 
   let cg_pieces: CGPiece[] = []
+
+  function set_drag(action: DragAction) {
+    switch (action.action) {
+      case 'start': {
+        let n = event_position_normalized(bounds, action.x, action.y)
+        let sq = normalized_to_square(n[0], n[1], cg_board.orientation.get())
+
+        console.log(sq)
+      } break
+    }
+  }
 
   function set_orientation(orientation: Color) {
     cg_pieces.forEach(_ => {
