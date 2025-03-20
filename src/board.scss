@@ -1,5 +1,5 @@
-$move-hi: #3D9970;
-$last-move: #555555;
+$last-move: #3D9970;
+$move-hi: #BCCFCC;
 $capture-hi: #ff851b;
 $check-hi: #ff4136;
 
@@ -58,6 +58,11 @@ $check-hi: #ff4136;
             aspect-ratio: 1;
 
             transform: translate(var(--translate-x, 0%), var(--translate-y, 0%)) rotate(var(--rotate-z, 0deg)) scale(var(--scale-z, 1));
+
+            &.last-move {
+                background: $last-move;
+                opacity: 0.72;
+            }
 
             &.orig {
                 background: $move-hi;

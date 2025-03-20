@@ -368,6 +368,7 @@ type CGBoard = CGOrientation & {
   pieces: Signal<Pieces>
   dests: Signal<Dests>
   drag: Signal<[CGPiece, CGPiece | undefined] | undefined>
+  last_move: Signal<[PositionKey, PositionKey]>
   on_drag_play_orig_key: Signal<[PositionKey, PositionKey]>
 }
 
@@ -399,7 +400,13 @@ function cg_board(cg_board: CGBoard) {
 
       set_pieces(new_in_pieces)
 
+
+
+      set_last_move([pos2key(orig), pos2key(dest)])
+
+
       cg_board.on_drag_play_orig_key.set([pos2key(orig), pos2key(dest)])
+
       return dest
     }
 
@@ -418,6 +425,12 @@ function cg_board(cg_board: CGBoard) {
 
   cg_board.pieces.subscribe(set_pieces)
   cg_board.orientation.subscribe(set_orientation)
+  cg_board.last_move.subscribe(set_last_move)
+
+  function set_last_move([l1, l2]: [PositionKey, PositionKey]) {
+    cg_last_moves = [l1, l2].map(_ => new_cg_square('last-move', key2pos(_)))
+    reconcile_local()
+  }
 
   function set_dests_for_key(key?: PositionKey) {
     let dests = key ? cg_board.dests.get()?.get(key) : undefined
@@ -599,11 +612,12 @@ function cg_board(cg_board: CGBoard) {
 
   let cg_dests: CGSquare[] = []
   let cg_orig: CGSquare[] = []
+  let cg_last_moves: CGSquare[] = []
 
   let prev_cg_all: (CGSquare | CGPiece)[] = []
 
   function reconcile_local() {
-    let next_all = [...cg_pieces, ...cg_orig,...cg_dests, ...cg_ghost]
+    let next_all = [...cg_last_moves, ...cg_pieces, ...cg_orig, ...cg_dests, ...cg_ghost]
 
     reconcile(el, prev_cg_all, next_all, _ => cg_piece_or_square(_, cg_board))
     prev_cg_all = next_all

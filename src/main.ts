@@ -29,6 +29,7 @@ export function cg_wrap(cg_wrap: CGWrap)  {
     pieces,
     orientation,
     drag,
+    last_move: cg_wrap.last_move,
     on_drag_play_orig_key
   })
 
