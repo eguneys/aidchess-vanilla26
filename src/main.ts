@@ -72,8 +72,8 @@ function app(el: HTMLElement) {
   el.appendChild(el_wrap)
   on_mount()
 
-  //fen.set(INITIAL_FEN)
-  fen.set('3k4/8/5n2/8/8/5B2/3K4/8 w - - 0 1')
+  fen.set(INITIAL_FEN)
+  //fen.set('8/3k4/8/3b4/3N4/3K4/8/8 w - - 0 1')
 
   document.addEventListener('keypress', e => {
     if (e.key === 'f') {

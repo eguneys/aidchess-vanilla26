@@ -21,6 +21,50 @@ export function removeElementResizeListener(observer: ResizeObserver) {
   observer.disconnect();
 }
 
+function swapElements(el: HTMLElement, orders: [number, number][]) {
+  orders.forEach(([index1, index2]) => {
+    const child1 = el.children[index1];
+    const child2 = el.children[index2];
+
+    const placeholder1 = document.createComment('placeholder1');
+    const placeholder2 = document.createComment('placeholder2');
+
+    el.insertBefore(placeholder1, child1);
+    el.insertBefore(placeholder2, child2);
+
+    el.insertBefore(child1, placeholder2);
+    el.insertBefore(child2, placeholder1);
+
+    el.removeChild(placeholder1);
+    el.removeChild(placeholder2);
+  });
+}
+
+function reconcileArraysThroughSwap(shuffledArray: any[], targetArray: any[]): [number, number][] {
+  let res: [number, number][] = []
+  const elementToIndex = new Map<any, number>();
+
+  for (let i = 0; i < shuffledArray.length; i++) {
+    elementToIndex.set(shuffledArray[i], i);
+  }
+
+  for (let i = 0; i < shuffledArray.length; i++) {
+    if (shuffledArray[i] === targetArray[i]) {
+      continue;
+    }
+
+    const targetElement = targetArray[i];
+    const targetIndex = elementToIndex.get(targetElement)!;
+
+    res.push([i, targetIndex])
+    ;[shuffledArray[i], shuffledArray[targetIndex]] = [shuffledArray[targetIndex], shuffledArray[i]];
+
+    // Update the map to reflect the new indices
+    elementToIndex.set(shuffledArray[i], i);
+    elementToIndex.set(shuffledArray[targetIndex], targetIndex);
+  }
+  return res
+}
 
 type DiffOrders = [number, number][]
 type DiffInserts<T> = [number, T][]
@@ -55,6 +99,8 @@ function diff_arrays<T>(old_array: T[], new_array: T[]): Diff<T> {
 
   let orders: DiffOrders = []
 
+  orders = reconcileArraysThroughSwap(old_array, new_array)
+  /*
   for (let i = 0; i < old_array.length; i++) {
     let new_i = find_index(new_array, old_array[i])
 
@@ -63,6 +109,7 @@ function diff_arrays<T>(old_array: T[], new_array: T[]): Diff<T> {
       ;[old_array[i], old_array[new_i]] = [old_array[new_i], old_array[i]]
     }
   }
+    */
 
   return [removes, inserts, orders, old_array, new_array]
 }
@@ -75,11 +122,15 @@ function diff_to_dom<T>(el: HTMLElement, diff: Diff<T>, make_t: (_: T) => HTMLEl
 
   inserts.forEach(_ => el.insertBefore(make_t(_[1]), el.children[_[0]] ?? null))
 
-  orders.map(_ => {
+  swapElements(el, orders)
+  /*
+  orders.forEach(_ => {
      el.insertBefore(el.children[_[0]], el.children[_[1]])
      el.insertBefore(el.children[_[1]], el.children[_[0]])
   })
+  */
 
+  console.log(diff[4].map(_ => _.piece), [...el.children])
 }
 
 export function reconcile<T>(el: HTMLElement, old_array: T[], new_array: T[], make_t: (_: T) => HTMLElement) {

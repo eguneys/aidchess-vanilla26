@@ -62,7 +62,7 @@ function pos_distance(a: Position, b: Position) {
   return df * df + dr * dr
 }
 
-function normalized_to_position(x: number, y: number, orientation?: Color) {
+function normalized_to_position(x: number, y: number, orientation: Color) {
   if (orientation === 'white') {
     y = 1 - y
   } else {
@@ -74,7 +74,7 @@ function normalized_to_position(x: number, y: number, orientation?: Color) {
   }
 }
 
-function position_to_percent(pos: Position, orientation?: Color) {
+function position_to_percent(pos: Position, orientation: Color) {
   let { file, rank } = pos
 
   let x = FILES.indexOf(file)
@@ -178,7 +178,7 @@ function cg_piece(cg_piece: CGPiece, cg_orientation: CGOrientation): HTMLElement
 
   let { orientation } = cg_orientation
 
-  let [x, y] = position_to_percent(cg_piece.position, orientation.get())
+  let [x, y] = position_to_percent(cg_piece.position, orientation.get()!)
 
   let deg = 0
   let scale = 1
@@ -211,7 +211,7 @@ function cg_piece(cg_piece: CGPiece, cg_orientation: CGOrientation): HTMLElement
   }
 
   function anim_translate_to_position(position: Position) {
-    let [x, y] = position_to_percent(position, orientation.get())
+    let [x, y] = position_to_percent(position, orientation.get()!)
     cg_piece.xy.set({ action: 'anim_translate', x, y })
   }
 
@@ -347,7 +347,7 @@ function cg_square(cg_square: CGSquare, cg_orientation: CGOrientation) {
   set_klass(el, { 'cg-square': true, [cg_square.a_klass]: true })
 
   let { orientation } = cg_orientation
-  let [x, y] = position_to_percent(cg_square.position, orientation.get())
+  let [x, y] = position_to_percent(cg_square.position, orientation.get()!)
 
   translate_percent(x, y)
   function translate_percent(new_x: number, new_y: number) {
@@ -396,14 +396,12 @@ function cg_board(cg_board: CGBoard) {
 
     if (dests?.includes(pos2key(dest)) === true) {
       let new_in_pieces =  {...in_pieces }
+
       delete new_in_pieces[pos2key(orig)]
+      delete new_in_pieces[pos2key(dest)]
 
       set_pieces(new_in_pieces)
-
-
-
       set_last_move([pos2key(orig), pos2key(dest)])
-
 
       return dest
     }
@@ -413,6 +411,7 @@ function cg_board(cg_board: CGBoard) {
 
   function drag_play_orig_dest_place(orig: CGPiece, dest: Position) {
     let new_in_pieces = { ...in_pieces }
+    console.log(pos2key(dest), orig.piece)
     new_in_pieces[pos2key(dest)] = piece2key(orig.piece)
     cg_pieces.push(new_cg_piece(orig.piece, dest, true))
     set_pieces(new_in_pieces)
@@ -459,7 +458,7 @@ function cg_board(cg_board: CGBoard) {
         
 
         let n = event_position_normalized(bounds, action.x, action.y)
-        let position = normalized_to_position(n[0], n[1], cg_board.orientation.get())
+        let position = normalized_to_position(n[0], n[1], cg_board.orientation.get()!)
 
         let [x, y] = [n[0] * 800 - 50, n[1] * 800 - 50]
         
@@ -487,7 +486,7 @@ function cg_board(cg_board: CGBoard) {
           return
         }
         let n = event_position_normalized(bounds, action.x, action.y)
-        let position = normalized_to_position(n[0], n[1], cg_board.orientation.get())
+        let position = normalized_to_position(n[0], n[1], cg_board.orientation.get()!)
 
         let [x, y] = [n[0] * 800 - 50, n[1] * 800 - 50]
         let [cg_piece, cg_piece_orig] = cg_drag
@@ -520,7 +519,7 @@ function cg_board(cg_board: CGBoard) {
         }
 
         let n = event_position_normalized(bounds, action.x, action.y)
-        let dest = normalized_to_position(n[0], n[1], cg_board.orientation.get())
+        let dest = normalized_to_position(n[0], n[1], cg_board.orientation.get()!)
 
         let [cg_piece, cg_piece_orig] = cg_drag
 
@@ -528,7 +527,7 @@ function cg_board(cg_board: CGBoard) {
 
         let ret_position = drag_play_orig_dest(orig, dest)
 
-        let [x, y] = position_to_percent(ret_position, cg_board.orientation.get())
+        let [x, y] = position_to_percent(ret_position, cg_board.orientation.get()!)
 
         const on_end = () => {
           cg_board.drag.set(undefined)
@@ -582,7 +581,7 @@ function cg_board(cg_board: CGBoard) {
       if (old_one) {
         new_cg_pieces.push(old_one)
         old_cg_pieces.splice(old_cg_pieces.indexOf(old_one), 1)
-        let [lerp_x, lerp_y] = position_to_percent(position)
+        let [lerp_x, lerp_y] = position_to_percent(position, cg_board.orientation.get()!)
         old_one.xy.set({ action: 'anim_translate', x: lerp_x, y: lerp_y })
       } else {
         new_cg_pieces.push(new_cg_piece(piece, position))
