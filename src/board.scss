@@ -54,6 +54,15 @@
             background-size: cover;
 
             transform: translate(var(--translate-x, 0%), var(--translate-y, 0%)) rotate(var(--rotate-z, 0deg)) scale(var(--scale-z, 1));
+
+            user-select: none;
+            cursor: pointer;
+            transition: top .1s;
+            top: 0;
+
+            &:hover {
+                top: -2px;
+            }
         }
     }
 }
