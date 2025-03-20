@@ -1,5 +1,5 @@
-import { cg_container, CGPiece, Color, Dests, FEN, fen2pieces, INITIAL_FEN, Pieces, PositionKey } from './board'
-import { fen2dests } from './chess'
+import { cg_container, CGPiece, Color, FEN, fen2pieces, INITIAL_FEN, Pieces, PositionKey } from './board'
+import { Dests, fen2dests, fen_play_uci } from './chess'
 import { h, set_klass } from './dom'
 import './index.scss'
 import { createMap, createSignal, Signal } from './reactive'
@@ -64,14 +64,16 @@ function app(el: HTMLElement) {
   })
 
   on_drag_play_orig_key.subscribe(([orig, dest]: [PositionKey, PositionKey]) => {
-    console.log(orig, dest)
+    let uci = `${orig}${dest}`
+    fen.set(fen_play_uci(fen.get()!, uci))
   })
 
   el_wrap.appendChild(cg_wrap_el)
   el.appendChild(el_wrap)
   on_mount()
 
-  fen.set(INITIAL_FEN)
+  //fen.set(INITIAL_FEN)
+  fen.set('3k4/8/5n2/8/8/5B2/3K4/8 w - - 0 1')
 
   document.addEventListener('keypress', e => {
     if (e.key === 'f') {

@@ -2,8 +2,8 @@ import './board.scss'
 import './assets/merida.css'
 import { addElementResizeListener, debounce, event_position_normalized, h, reconcile, set_content, set_klass, set_translate_percent } from './dom'
 import { anim_value, AnimEngine, AnimValue, createSignal, DragAction, DragEngine, lerp, make_anim_value, Signal } from './reactive'
+import { Dests } from './chess'
 
-export type Dests = Map<PositionKey, PositionKey[]>
 
 const FILES = ['a','b','c','d','e','f','g','h'] as const
 const RANKS = ['1','2','3','4','5','6','7','8'] as const
@@ -405,8 +405,6 @@ function cg_board(cg_board: CGBoard) {
       set_last_move([pos2key(orig), pos2key(dest)])
 
 
-      cg_board.on_drag_play_orig_key.set([pos2key(orig), pos2key(dest)])
-
       return dest
     }
 
@@ -418,6 +416,8 @@ function cg_board(cg_board: CGBoard) {
     new_in_pieces[pos2key(dest)] = piece2key(orig.piece)
     cg_pieces.push(new_cg_piece(orig.piece, dest, true))
     set_pieces(new_in_pieces)
+
+    cg_board.on_drag_play_orig_key.set([pos2key(orig.position), pos2key(dest)])
   }
 
 
