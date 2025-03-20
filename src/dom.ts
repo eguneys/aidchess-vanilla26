@@ -77,7 +77,7 @@ function diff_to_dom<T>(el: HTMLElement, diff: Diff<T>, make_t: (_: T) => HTMLEl
 
   orders.map(_ => {
      el.insertBefore(el.children[_[0]], el.children[_[1]])
-     el.insertBefore(el.children[_[1] - 1], el.children[_[0]])
+     el.insertBefore(el.children[_[1]], el.children[_[0]])
   })
 
 }

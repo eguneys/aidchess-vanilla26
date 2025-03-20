@@ -423,10 +423,9 @@ function cg_board(cg_board: CGBoard) {
           cg_piece.ghost.set(true)
           cg_piece.scale.set(0.8)
 
-          set_dests_for_key(pos2key(position))
 
           cg_orig = [new_cg_square('orig', cg_piece.position)]
-          reconcile_local()
+          set_dests_for_key(pos2key(position))
         }
 
 
@@ -485,9 +484,9 @@ function cg_board(cg_board: CGBoard) {
           cg_piece_orig.ghost.set(false)
           cg_piece_orig.scale.set(1)
         }
-        set_dests_for_key(undefined)
+
         cg_orig = []
-        reconcile_local()
+        set_dests_for_key(undefined)
       } break
     }
   }
@@ -591,7 +590,6 @@ function cg_coords(cg_coords: CGCoords) {
   cg_coords.orientation.subscribe(set_orientation)
 
   function set_orientation(orientation: Color) {
-
 
     let old_ranks: Rank[], new_ranks: Rank[]
 
