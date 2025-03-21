@@ -196,7 +196,7 @@ function cg_piece(cg_piece: CGPiece, cg_orientation: CGOrientation): HTMLElement
   if (cg_piece.put_immediate) {
 
   } else {
-    rotate_deg(Math.random() * 30)
+    rotate_deg(Math.random() * 16)
   }
   function rotate_deg(new_deg: number) {
     deg = new_deg
@@ -359,15 +359,18 @@ function cg_square(cg_square: CGSquare, cg_orientation: CGOrientation) {
   return el
 }
 
+export type CGDrag = [CGPiece, CGPiece | undefined] | undefined | [CGPiece, 'busy']
 
 type CGOrientation = {
   orientation: Signal<Color>
 }
 
 type CGBoard = CGOrientation & {
+  check: Signal<boolean>
+  turn: Signal<Color>
   pieces: Signal<Pieces>
   dests: Signal<Dests>
-  drag: Signal<[CGPiece, CGPiece | undefined] | undefined>
+  drag: Signal<CGDrag>
   last_move: Signal<[PositionKey, PositionKey]>
   on_drag_play_orig_key: Signal<[PositionKey, PositionKey]>
 }
@@ -411,7 +414,6 @@ function cg_board(cg_board: CGBoard) {
 
   function drag_play_orig_dest_place(orig: CGPiece, dest: Position) {
     let new_in_pieces = { ...in_pieces }
-    console.log(pos2key(dest), orig.piece)
     new_in_pieces[pos2key(dest)] = piece2key(orig.piece)
     cg_pieces.push(new_cg_piece(orig.piece, dest, true))
     set_pieces(new_in_pieces)
@@ -443,8 +445,11 @@ function cg_board(cg_board: CGBoard) {
     }
   }
 
-  let on_piece: CGPiece | undefined
+  function can_start_drag(color: Color) {
+    return cg_board.turn.get() === color
+  }
 
+  let on_piece: CGPiece | undefined
 
   function set_drag(action: DragAction) {
     switch (action.action) {
@@ -452,11 +457,11 @@ function cg_board(cg_board: CGBoard) {
         let cg_drag = cg_board.drag.get()
 
         if (cg_drag) {
-          cg_drag[0].xy.set({ action: 'cancel' })
-          cg_board.drag.set(undefined)
+          //cg_drag[0].xy.set({ action: 'cancel' })
+          //cg_board.drag.set(undefined)
+          return
         }
         
-
         let n = event_position_normalized(bounds, action.x, action.y)
         let position = normalized_to_position(n[0], n[1], cg_board.orientation.get()!)
 
@@ -464,6 +469,11 @@ function cg_board(cg_board: CGBoard) {
         
         let cg_piece = cg_pieces.find(_ => pos_equal(_.position, position))
         if (cg_piece) {
+
+          if (!can_start_drag(cg_piece.piece.color)) {
+            return
+          }
+
           let cg_piece_clone: CGPiece = new_cg_piece(cg_piece.piece, cg_piece.position)
 
           cg_board.drag.set([cg_piece_clone, cg_piece])
@@ -482,7 +492,7 @@ function cg_board(cg_board: CGBoard) {
       } break
       case 'move': {
         let cg_drag = cg_board.drag.get()
-        if (!cg_drag) {
+        if (!cg_drag || cg_drag[1] === 'busy') {
           return
         }
         let n = event_position_normalized(bounds, action.x, action.y)
@@ -514,7 +524,7 @@ function cg_board(cg_board: CGBoard) {
       } break
       case 'drop': {
         let cg_drag = cg_board.drag.get()
-        if (!cg_drag) {
+        if (!cg_drag || cg_drag[1] === 'busy') {
           return
         }
 
@@ -529,6 +539,7 @@ function cg_board(cg_board: CGBoard) {
 
         let [x, y] = position_to_percent(ret_position, cg_board.orientation.get()!)
 
+        cg_board.drag.set([cg_piece, 'busy'])
         const on_end = () => {
           cg_board.drag.set(undefined)
           if (ret_position === dest) {
@@ -537,7 +548,6 @@ function cg_board(cg_board: CGBoard) {
           }
         }
         cg_piece.xy.set({ action: 'anim_translate', x, y, on_end })
-
 
         if (on_piece) {
           on_piece.scale.set(1)
@@ -583,6 +593,7 @@ function cg_board(cg_board: CGBoard) {
         old_cg_pieces.splice(old_cg_pieces.indexOf(old_one), 1)
         let [lerp_x, lerp_y] = position_to_percent(position, cg_board.orientation.get()!)
         old_one.xy.set({ action: 'anim_translate', x: lerp_x, y: lerp_y })
+        old_one.position = position
       } else {
         new_cg_pieces.push(new_cg_piece(piece, position))
       }
@@ -593,7 +604,7 @@ function cg_board(cg_board: CGBoard) {
   }
 
   cg_board.drag.subscribe((dghost, prevdghost) => {
-    if (dghost) {
+    if (Array.isArray(dghost)) {
 
       cg_ghost = [dghost[0]]
       reconcile_local()
@@ -615,11 +626,21 @@ function cg_board(cg_board: CGBoard) {
 
   let prev_cg_all: (CGSquare | CGPiece)[] = []
 
+  let next_all: (CGSquare | CGPiece)[]
+  let has_reconcile = false
   function reconcile_local() {
-    let next_all = [...cg_last_moves, ...cg_pieces, ...cg_orig, ...cg_dests, ...cg_ghost]
+    next_all = [...cg_last_moves, ...cg_pieces, ...cg_orig, ...cg_dests, ...cg_ghost]
+    if (has_reconcile) {
+      return
+    }
 
-    reconcile(el, prev_cg_all, next_all, _ => cg_piece_or_square(_, cg_board))
-    prev_cg_all = next_all
+    has_reconcile = true
+    queueMicrotask(reconcile_now)
+    function reconcile_now() {
+      has_reconcile = false
+      reconcile(el, prev_cg_all, next_all, _ => cg_piece_or_square(_, cg_board))
+      prev_cg_all = next_all
+    }
   }
 
   return  {
@@ -637,49 +658,36 @@ function cg_coords(cg_coords: CGCoords) {
   let el_files = h('div')
   set_klass(el_files, { 'cg-files': true })
 
-  FILES.forEach(file => {
-    let el_file = h('div')
-    set_klass(el_file, { 'cg-file': true })
-    set_content(el_file, file)
-
-    el_files.appendChild(el_file)
-  })
-
   let el_ranks = h('div')
   set_klass(el_ranks, { 'cg-ranks': true })
 
-  RANKS_DESC.forEach(rank => {
-    let el_rank = h('div')
-    set_klass(el_rank, { 'cg-rank': true })
-    set_content(el_rank, rank)
-
-    el_ranks.appendChild(el_rank)
-  })
-
   cg_coords.orientation.subscribe(set_orientation)
+
+  let ranks: Rank[] = []
+  let files: File[] = []
 
   function set_orientation(orientation: Color) {
 
-    let old_ranks: Rank[], new_ranks: Rank[]
+    let new_ranks = orientation === 'black' ? RANKS.slice(0) : RANKS_DESC.slice(0)
+    reconcile(el_ranks, ranks, new_ranks, (rank: Rank) => {
+      let el_rank = h('div')
+      set_klass(el_rank, { 'cg-rank': true })
+      set_content(el_rank, rank)
 
-    [old_ranks, new_ranks] = [RANKS.slice(0), RANKS_DESC.slice(0)]
-
-    if (orientation === 'black') {
-      [old_ranks, new_ranks] = [new_ranks, old_ranks]
-    }
-
-    reconcile(el_ranks, old_ranks, new_ranks, (_: Rank) => h('div'))
+      return el_rank
+    })
+    ranks = new_ranks
 
 
-    let old_files: File[], new_files: File[]
+    let new_files = orientation === 'black' ? FILES_DESC.slice(0) : FILES.slice(0)
+    reconcile(el_files, files, new_files, (file: File) => {
+      let el_file = h('div')
+      set_klass(el_file, { 'cg-file': true })
+      set_content(el_file, file)
 
-    [old_files, new_files] = [FILES.slice(0), FILES_DESC.slice(0)]
-
-    if (orientation === 'black') {
-      [old_files, new_files] = [new_files, old_files]
-    }
-
-    reconcile(el_files, old_files, new_files, (_: File) => h('div'))
+      return el_file
+    })
+    files = new_files
   }
 
   return {
@@ -693,6 +701,10 @@ export function cg_container(cg_container: CGContainer) {
 
   let el = h('div')
   set_klass(el, { 'cg-container': true })
+
+  cg_container.turn.subscribe(color => {
+    set_klass(el, { 'turn-white': color === 'white', 'turn-black': color === 'black' })
+  })
 
   let { els: [cg_files, cg_ranks] } = cg_coords(cg_container)
 

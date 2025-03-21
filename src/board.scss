@@ -103,9 +103,6 @@ $check-hi: #ff4136;
             transition: opacity .3s, top .1s;
             top: 0;
 
-            &:hover {
-                top: -1px;
-            }
 
             &.ghost {
                 opacity: 0.6;
@@ -114,6 +111,23 @@ $check-hi: #ff4136;
 
             &.dragging {
                 pointer-events: none;
+            }
+        }
+    }
+
+    &.turn-white {
+        .cg-piece.white {
+            &:hover {
+                top: -1px;
+            }
+        }
+    }
+
+
+    &.turn-black {
+        .cg-piece.black {
+            &:hover {
+                top: -1px;
             }
         }
     }

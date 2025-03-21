@@ -15,6 +15,14 @@ export function fen2dests(fen: FEN): Dests {
     return chessgroundDests(fen2pos(fen))
 }
 
+export function fen2turn(fen: FEN) {
+    return fen2pos(fen).turn
+}
+export function fen2check(fen: FEN) {
+    return fen2pos(fen).isCheck()
+}
+
+
 export function fen_play_uci(fen: FEN, uci: UCI): FEN {
     let pos = fen2pos(fen)
     pos.play(parseUci(uci)!)

@@ -1,5 +1,5 @@
 import { cg_container, CGPiece, Color, FEN, fen2pieces, INITIAL_FEN, Pieces, PositionKey } from './board'
-import { Dests, fen2dests, fen_play_uci } from './chess'
+import { Dests, fen2check, fen2dests, fen2turn, fen_play_uci } from './chess'
 import { h, set_klass } from './dom'
 import './index.scss'
 import { createMap, createSignal, Signal } from './reactive'
@@ -17,14 +17,18 @@ export function cg_wrap(cg_wrap: CGWrap)  {
   let el = h('div')
   set_klass(el, { 'cg-wrap': true, 'is2d': true })
 
+  let turn = createMap<Color, FEN>(cg_wrap.fen, fen2turn)
+  let check = createMap<boolean, FEN>(cg_wrap.fen, fen2check)
   let pieces = createMap<Pieces, FEN>(cg_wrap.fen, fen2pieces)
   let orientation = cg_wrap.orientation
-  let drag = createSignal<[CGPiece, CGPiece | undefined] | undefined>()
+  let drag = createSignal<CGDrag>()
   let on_drag_play_orig_key = cg_wrap.on_drag_play_orig_key
 
   let dests = createMap<Dests, FEN>(cg_wrap.fen, fen2dests)
 
   let { on_mount, el: cg_container_el } = cg_container({
+    check,
+    turn,
     dests,
     pieces,
     orientation,
@@ -65,7 +69,8 @@ function app(el: HTMLElement) {
 
   on_drag_play_orig_key.subscribe(([orig, dest]: [PositionKey, PositionKey]) => {
     let uci = `${orig}${dest}`
-    fen.set(fen_play_uci(fen.get()!, uci))
+    let next_fen = fen_play_uci(fen.get()!, uci)
+    fen.set(next_fen)
   })
 
   el_wrap.appendChild(cg_wrap_el)
@@ -74,6 +79,7 @@ function app(el: HTMLElement) {
 
   fen.set(INITIAL_FEN)
   //fen.set('8/3k4/8/3b4/3N4/3K4/8/8 w - - 0 1')
+  //fen.set('rnbqk2r/pppp1ppp/3b1n2/4p1N1/4P3/3B4/PPPP1PPP/RNBQK2R b KQkq - 5 4')
 
   document.addEventListener('keypress', e => {
     if (e.key === 'f') {

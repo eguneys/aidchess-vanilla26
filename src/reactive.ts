@@ -37,6 +37,11 @@ export function createSignal<T>(initialValue?: T): Signal<T> {
 
   const subscribe = (listener: Listener<T>): void => {
     listeners.add(listener);
+    queueMicrotask(() => {
+      if (value) {
+        listener(value, value)
+      }
+    })
   };
 
   const unsubscribe = (listener: Listener<T>): void => {

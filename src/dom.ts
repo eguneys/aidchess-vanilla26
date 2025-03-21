@@ -130,7 +130,7 @@ function diff_to_dom<T>(el: HTMLElement, diff: Diff<T>, make_t: (_: T) => HTMLEl
   })
   */
 
-  console.log(diff[4].map(_ => _.piece), [...el.children])
+  //console.log(diff[4].map(_ => _.piece), [...el.children])
 }
 
 export function reconcile<T>(el: HTMLElement, old_array: T[], new_array: T[], make_t: (_: T) => HTMLElement) {
